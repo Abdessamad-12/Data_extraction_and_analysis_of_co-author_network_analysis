@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.keys import Keys
+import csv
 service = Service(executable_path="chromedriver.exe")
 driver = webdriver.Chrome(service=service)
 def get_coauthors():
@@ -46,16 +46,15 @@ def click_next_page(driver):
         except Exception as e:
             print(f"Retry failed: {e}")
             return False
-#def extraction_authors():
 
 
-    #driver.get("https://www.semanticscholar.org/")
-    #search = driver.find_element(By.XPATH, "//input[@type='search']")
-    #search.send_keys('morocco' + Keys.ENTER)
+#driver.get("https://www.semanticscholar.org/")
+#search = driver.find_element(By.XPATH, "//input[@type='search']")
+#search.send_keys('morocco' + Keys.ENTER)
 driver.get("https://www.semanticscholar.org/search?fos%5B0%5D=engineering&q=morocco&sort=relevance")
 authors = []
 page_number = 1
-while True:
+while page_number <= 4:
     try:
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//a[@class='link-button--show-visited']")))
 
@@ -93,6 +92,7 @@ while True:
                     co_authors_list = get_coauthors()
 
                     authors_list.append(co_authors_list)
+
                     driver.back()
                 driver.back()
                 print(authors_list)
@@ -112,3 +112,4 @@ while True:
 
 time.sleep(5)
 driver.quit()
+
