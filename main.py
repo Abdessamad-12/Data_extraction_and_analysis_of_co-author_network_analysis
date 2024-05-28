@@ -15,24 +15,16 @@ def get_coauthors():
     co_authors_link.click()
 
     WebDriverWait(driver, 20).until(
-        EC.presence_of_element_located((By.XPATH, "//div[@class='author-influence-page__author-list__item']")))
+        EC.presence_of_element_located((By.XPATH, "//div[@class='author-influence-page__author-list__item']"))
+    )
 
     co_authors_list = []
-    citations = []
 
     all_co_authors = driver.find_elements(By.XPATH, "//h3[@class='author-row__headline__name']")
     for co_author in all_co_authors:
         co_authors_list.append(co_author.text)
-        try:
-            citation_element = co_author.find_element(By.XPATH,
-                                                      "../../..//li[contains(@class, 'author-row-meta__item')]//span[contains(text(), 'Citations')]")
-            citation_text = citation_element.text  # This will get the text '78 Citations'
-            citation_number = int(citation_text.split()[0])
-        except Exception as e:
-            print(f"Could not find citation element for co-author {co_author.text}: {e}")
-            citation_number = 0
-        citations.append(citation_number)
-    return co_authors_list, citations
+
+    return co_authors_list
 
 
 def click_next_page(driver):
@@ -44,28 +36,47 @@ def click_next_page(driver):
         driver.execute_script("arguments[0].click();", next_page)
         return True
     except Exception as e:
-        print(f"Error clicking next page: {e}")
-        return False
+        print(f"Exception during page navigation: {e}. Retrying click after closing potential overlays.")
+        try:
+            cookie_banner = driver.find_element(By.XPATH, "//div[@class='cookie-banner']")
+            if cookie_banner:
+                accept_cookies_button = cookie_banner.find_element(By.XPATH, "//button[contains(text(), 'Accept')]")
+                accept_cookies_button.click()
+                time.sleep(2)
+        except:
+            pass
+        try:
+            driver.execute_script("arguments[0].click();", next_page)
+            return True
+        except Exception as e:
+            print(f"Retry failed: {e}")
+            return False
 
 
 authors_data = []
+processed_authors = set()
 driver.get("https://www.semanticscholar.org/search?fos%5B0%5D=engineering&q=morocco&sort=relevance")
 
 page_number = 1
-while page_number <= 2:
+while page_number <= 1:
     try:
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//a[@class='link-button--show-visited']")))
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//span[@data-test-id='author-list']")))
 
         search_authors = driver.find_elements(By.XPATH, "//span[@data-test-id='author-list']")
-
         all_element = driver.find_elements(By.XPATH,
                                            "//div[@class='cl-paper-row serp-papers__paper-row paper-v2-cue paper-row-normal']")
+
         for i in range(len(all_element)):
             results = driver.find_elements(By.XPATH, "//a[@data-test-id='title-link']")
+            if i >= len(results):
+                print(f"Index {i} is out of range for results on page {page_number}")
+                continue
             link_element = results[i]
-
             driver.execute_script("arguments[0].click();", link_element)
+
             WebDriverWait(driver, 10).until(
                 EC.presence_of_element_located((By.XPATH, "//span[@data-heap-id='heap_author_list_item']")))
 
@@ -73,27 +84,26 @@ while page_number <= 2:
             for l in range(len(all_authors)):
                 authors_link = driver.find_elements(By.XPATH,
                                                     ".//a[@class='author-list__link author-list__author-name']")
+                if l >= len(authors_link):
+                    print(f"Index {l} is out of range for authors_link on page {page_number}")
+                    continue
                 author = authors_link[l]
-                driver.execute_script("arguments[0].click();", author)
+                author_name_text = author.text
 
+                if author_name_text in processed_authors:
+                    continue
+
+                driver.execute_script("arguments[0].click();", author)
                 WebDriverWait(driver, 20).until(
                     EC.presence_of_element_located((By.XPATH, "//a[@data-test-id='author-page-tabs__co-authors']")))
-                author_name = driver.find_element(By.XPATH, "//h1[@data-test-id='author-name']").text
-                try:
-                    author_citations = driver.find_element(By.XPATH,
-                                                           "//div[@class='author-detail-card__stats-row' and .//span[text()='citations']]/span[@class='author-detail-card__stats-row__value']").text
-                except Exception as e:
-                    print(f"Could not find citations for author {author_name}: {e}")
-                    author_citations = "0"
 
-                if author_name not in [data['Author'] for data in authors_data]:
-                    co_authors_list, citations = get_coauthors()
-                    authors_data.append({
-                        'Author': author_name,
-                        'Author_Citations': author_citations,
-                        'Co-authors': ', '.join(co_authors_list),
-                        'Co-author_Citations': ', '.join(map(str, citations))
-                    })
+                author_name = driver.find_element(By.XPATH, "//h1[@data-test-id='author-name']")
+
+                if author_name.text not in processed_authors:
+                    co_authors_list = get_coauthors()
+                    authors_data.append({'Author': author_name.text, 'Co-authors': ', '.join(co_authors_list)})
+                    processed_authors.add(author_name.text)
+
                 driver.back()
                 driver.back()
 
@@ -108,7 +118,7 @@ while page_number <= 2:
         break
 
 with open('authors_and_coauthors.csv', 'w', newline='', encoding='utf-8') as csvfile:
-    fieldnames = ['Author', 'Author_Citations', 'Co-authors', 'Co-author_Citations']
+    fieldnames = ['Author', 'Co-authors']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
     for data in authors_data:

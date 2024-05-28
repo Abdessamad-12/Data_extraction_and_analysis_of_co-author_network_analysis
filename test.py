@@ -113,4 +113,3 @@ with open('authors_and_coauthors.csv', 'w', newline='', encoding='utf-8') as csv
 
 time.sleep(5)
 driver.quit()
-
