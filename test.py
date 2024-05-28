@@ -16,9 +16,11 @@ def get_coauthors():
 
     co_authors_list = []
 
+
     all_co_authors = driver.find_elements(By.XPATH, "//h3[@class='author-row__headline__name']")
     for co_author in all_co_authors:
         co_authors_list.append(co_author.text)
+
     return co_authors_list
 
 def click_next_page(driver):
@@ -52,7 +54,7 @@ authors_data = []
 driver.get("https://www.semanticscholar.org/search?fos%5B0%5D=engineering&q=morocco&sort=relevance")
 
 page_number = 1
-while page_number <= 4:
+while page_number <= 1:
     try:
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//a[@class='link-button--show-visited']")))
 
@@ -81,12 +83,12 @@ while page_number <= 4:
                     EC.presence_of_element_located((By.XPATH, "//a[@data-test-id='author-page-tabs__co-authors']")))
                 author_name = driver.find_element(By.XPATH, "//h1[@data-test-id='author-name']")
 
+
                 if author_name not in [data['Author'] for data in authors_data]:
                     co_authors_list = get_coauthors()
-                    authors_data.append({'Author': author_name.text, 'Co-authors': ', '.join(co_authors_list)})
+                    authors_data.append({'Author': author_name.text,
+                                         'Co-authors': ', '.join(co_authors_list)})
                 driver.back()
-
-
                 driver.back()
 
 
